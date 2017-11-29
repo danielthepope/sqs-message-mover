@@ -8,7 +8,8 @@ const argv = require('minimist')(process.argv.slice(2), {
     'o': 'out-queue',
     'r': 'respool',
     'k': 'aws-access-key-id',
-    's': 'aws-secret-access-key'
+    's': 'aws-secret-access-key',
+    't': 'timeout'
   }
 });
 
@@ -19,20 +20,18 @@ const AWS_DEFAULT_REGION = argv['region'] || process.env.AWS_DEFAULT_REGION;
 const IN_QUEUE = argv['in-queue'];
 const OUT_QUEUE = argv['out-queue'];
 const RESPOOL = argv['respool'];
-const DELAY = 60;
+const TIMEOUT = argv['timeout'] || 60;
 
 // validate arguments
 console.log(`AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}`);
-console.log(`AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}`);
+console.log(`AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY? 'provided' : 'missing'}`);
 console.log(`AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}`);
 console.log(`IN_QUEUE: ${IN_QUEUE}`);
 console.log(`OUT_QUEUE: ${OUT_QUEUE}`);
 console.log(`RESPOOL: ${RESPOOL}`);
-console.log(`DELAY: ${DELAY}`);
+console.log(`TIMEOUT: ${TIMEOUT}`);
 
 if (AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY && AWS_DEFAULT_REGION && IN_QUEUE && (OUT_QUEUE || RESPOOL)) {
-  console.log('woop');
-
   AWS.config.update({
     region: AWS_DEFAULT_REGION,
     accessKeyId: AWS_ACCESS_KEY_ID,
@@ -47,7 +46,7 @@ if (AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY && AWS_DEFAULT_REGION && IN_QUEUE
     handleMessage: (message, done) => {
       console.log(message.Body);
       SQS.sendMessage({
-        DelaySeconds: DELAY,
+        DelaySeconds: TIMEOUT,
         QueueUrl: RESPOOL ? IN_QUEUE : OUT_QUEUE,
         MessageBody: message.Body
       }, (err, data) => {
@@ -65,7 +64,7 @@ if (AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY && AWS_DEFAULT_REGION && IN_QUEUE
   const timer = setTimeout(() => {
     app.stop();
     console.log('App timeout');
-  }, DELAY * 1000);
+  }, TIMEOUT * 1000);
 
   app.on('empty', () => {
     app.stop();
@@ -85,5 +84,6 @@ Usage:
   -k, --aws-access-key-id KEY_ID  | Your access key ID
   -s, --aws-secret-access-key KEY | Your secret access key
   -r, --respool                   | Read and write to the same queue. Use to reset waiting times
+  -t, --timeout SECONDS           | Keep moving messages for this number of seconds
   `);
 }
